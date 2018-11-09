@@ -1,0 +1,126 @@
+from bs4 import BeautifulSoup
+import re
+import time
+import random
+import requests
+
+from selenium import webdriver
+from selenium.webdriver.support.select import Select
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+driver = webdriver.Chrome("/Users/KevinDong/Desktop/chromedriver")
+
+
+famdoctors = []
+for i in range(30):
+    pagefam = requests.get('https://www.ratemds.com/best-doctors/on/toronto/family-gp/?page='+ format(i))
+    soupfam = BeautifulSoup(pagefam.content, 'html.parser')
+    namefam = soupfam.findAll('div', attrs={'class' : 'search-item doctor-profile'})
+
+    for n in namefam:
+        if n.find('a').get_text() not in famdoctors:
+            famdoctors.append(n.find('a').get_text())
+    time.sleep(10 + random.random())
+
+list_row = []
+alladress = []
+content = []
+for name in famdoctors:
+    research_later = '"cpso"+' + name.split(',')[0].replace(" ", "+") 
+    goog_search = "https://www.google.ca/search?q=" + research_later
+    print(goog_search, "         ####################")
+    time.sleep(10 + random.random())
+    r = requests.get(goog_search)
+    soup = BeautifulSoup(r.text, "html.parser")
+    for s in soup.find_all('cite')[:3]:
+        time.sleep(8 + random.random())
+        print(s.text)
+        if "cpso" in s.text and "..." in s.text :
+            print(s.text, "search in cpso directly")
+            
+            wait = WebDriverWait(driver, 15)
+            driver.get('https://www.cpso.on.ca/public-register/All-Doctors-Search?refine=true&search=quick')
+            driver.find_element_by_id('p_lt_ctl04_pageplaceholder_p_lt_ctl02_AllDoctorsSearch_txtCPSONumber').send_keys(s.text.split('...')[1].split('-')[1])
+            print(s.text.split('...')[1].split('-')[1])
+            driver.find_element_by_id('p_lt_ctl04_pageplaceholder_p_lt_ctl02_AllDoctorsSearch_btnSubmit').click()
+            break
+        elif "cpso" not in s.text:
+            print('not this! next')
+        else:
+            wait = WebDriverWait(driver, 15)
+            driver.get(s.text)
+            break
+    if driver.find_elements_by_tag_name('p') != None :
+        list_row += [[cell.text for cell in driver.find_elements_by_tag_name('p')]]
+        content += [cell.text.split('\n') for cell in driver.find_elements_by_class_name('practice-location')]
+        print([cell.text.split('\n') for cell in driver.find_elements_by_class_name('practice-location')])
+    else:
+        list_row += ['']
+        content += ['']
+driver.close()
+
+language = []
+gender = []
+independentPractise = []
+education = []
+for row in list_row:
+    if row == []:
+        language += ['English']
+        gender += ['N/A']
+    else:
+        language += [row[4][17:]]
+        gender += [row[3][7:]]
+        if row[1] !='':
+            independentPractise += [int(row[1][-4:])]
+        else:
+            independentPractise += [""]
+        if row[5] != '':
+            education += [row[5].split(',')[0][10:]]
+        else:
+            education += [""]
+            
+address=[]
+for con in content:
+    if len(con) < 2:
+        address += [""]
+    else:
+        add = ''
+        l = 0
+        for co in con[1:]:
+            add += con[l+1] + ', '
+            if con[l+2][:5] != 'Phone':
+                l += 1
+            else:
+                break     
+        address += [add]
+ import geocoder
+geoadd = []
+lat=[]
+lng=[]
+addtemp = ''
+#only return the fam doctors with address found in Toronto
+finalfamdoctors = []
+n = 0
+for ad in address:  
+    if len(ad) > 1:
+        for a in ad.split(','):
+            if "Avenue" in a or "Street" in a or "Drive" in a or "Road" in a or "Boulevard" in a or "Highway" in a:
+                addtemp += a + ', '
+            else:
+                if addtemp != '':
+                    if "Toronto ON " in a:
+                        addtemp += "Toronto ON"
+                        g = geocoder.osm(addtemp)
+                        print(addtemp, g.latlng)
+                        if g.latlng != None:
+                            geoadd += [g.latlng]
+                            lat += [float(g.latlng[0])]
+                            lng += [float(g.latlng[1])]
+                            finalfamdoctors += [famdoctors[n]]
+                            break
+
+    addtemp = ''
+    n += 1
+geoadd
