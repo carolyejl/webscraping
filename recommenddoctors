@@ -124,3 +124,8 @@ for ad in address:
     addtemp = ''
     n += 1
 geoadd
+
+clinic_service = list(zip(famdoctors, list_row,language,gender,independentPractise,education,address))
+clinic_service
+df=pd.DataFrame(clinic_service)
+df.to_excel('output.xlsx')
